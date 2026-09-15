@@ -3456,7 +3456,7 @@ func Test_mcpConfig_OAuthResourceMetadataURL(t *testing.T) {
 					Authorization: &aigv1b1.MCPRouteAuthorization{},
 					OAuth: &aigv1b1.MCPRouteOAuth{
 						ProtectedResourceMetadata: aigv1b1.ProtectedResourceMetadata{
-							Resource: ptr.To("https://api.example.com/mcp"),
+							Resource: "https://api.example.com/mcp",
 						},
 					},
 				},

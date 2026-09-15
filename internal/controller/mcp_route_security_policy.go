@@ -399,8 +399,8 @@ func resolveOAuthResourceURL(ctx context.Context, k8sClient client.Client, mcpRo
 	}
 
 	auth := mcpRoute.Spec.SecurityPolicy.OAuth
-	if auth.ProtectedResourceMetadata.Resource != nil && *auth.ProtectedResourceMetadata.Resource != "" {
-		return strings.TrimSuffix(*auth.ProtectedResourceMetadata.Resource, "/"), nil
+	if auth.ProtectedResourceMetadata.Resource != "" {
+		return strings.TrimSuffix(auth.ProtectedResourceMetadata.Resource, "/"), nil
 	}
 
 	if ctx == nil {

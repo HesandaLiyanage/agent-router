@@ -97,7 +97,7 @@ func TestMCPRouteController_syncMCPRouteSecurityPolicy(t *testing.T) {
 								},
 							},
 							ProtectedResourceMetadata: aigv1b1.ProtectedResourceMetadata{
-								Resource:                          ptr.To("https://api.example.com/mcp"),
+								Resource:                          "https://api.example.com/mcp",
 								ScopesSupported:                   []string{"read", "write"},
 								ResourceName:                      ptr.To("my cool mcp tools"),
 								ResourceSigningAlgValuesSupported: []string{"RS256", "ES256"},
@@ -126,7 +126,7 @@ func TestMCPRouteController_syncMCPRouteSecurityPolicy(t *testing.T) {
 							Issuer:    server.URL,
 							Audiences: []string{"test-audience"},
 							ProtectedResourceMetadata: aigv1b1.ProtectedResourceMetadata{
-								Resource:        ptr.To("https://api.example.com/mcp"),
+								Resource:        "https://api.example.com/mcp",
 								ScopesSupported: []string{"read", "write"},
 							},
 						},
@@ -346,7 +346,7 @@ func TestMCPRouteController_syncMCPRouteSecurityPolicy(t *testing.T) {
 								},
 							},
 							ProtectedResourceMetadata: aigv1b1.ProtectedResourceMetadata{
-								Resource:        ptr.To("https://api.example.com/mcp"),
+								Resource:        "https://api.example.com/mcp",
 								ScopesSupported: []string{"read", "write"},
 							},
 						},
@@ -507,7 +507,7 @@ func TestMCPRouteControllerCleanupSecurityPolicyResources(t *testing.T) {
 						},
 					},
 					ProtectedResourceMetadata: aigv1b1.ProtectedResourceMetadata{
-						Resource:        ptr.To("https://api.example.com/mcp"),
+						Resource:        "https://api.example.com/mcp",
 						ScopesSupported: []string{"read", "write"},
 					},
 				},
@@ -580,7 +580,7 @@ func TestMCPRouteController_syncMCPRouteSecurityPolicy_DisableOAuthKeepsAPIKey(t
 					URI: "https://auth.example.com/.well-known/jwks.json",
 				},
 			},
-			ProtectedResourceMetadata: aigv1b1.ProtectedResourceMetadata{Resource: ptr.To("https://api.example.com/mcp")},
+			ProtectedResourceMetadata: aigv1b1.ProtectedResourceMetadata{Resource: "https://api.example.com/mcp"},
 		},
 		APIKeyAuth: &egv1a1.APIKeyAuth{
 			CredentialRefs: []gwapiv1.SecretObjectReference{{Name: "client-keys"}},
@@ -657,7 +657,7 @@ func TestMCPRouteController_syncMCPRouteSecurityPolicy_ClaimToHeaders(t *testing
 						},
 					},
 					ProtectedResourceMetadata: aigv1b1.ProtectedResourceMetadata{
-						Resource: ptr.To("https://api.example.com/mcp"),
+						Resource: "https://api.example.com/mcp",
 					},
 					ClaimToHeaders: []egv1a1.ClaimToHeader{
 						{Claim: "sub", Header: "X-User-Id"},
@@ -696,7 +696,7 @@ func Test_buildOAuthProtectedResourceMetadataJSON(t *testing.T) {
 	auth := &aigv1b1.MCPRouteOAuth{
 		Issuer: "https://auth.example.com",
 		ProtectedResourceMetadata: aigv1b1.ProtectedResourceMetadata{
-			Resource:        ptr.To("https://api.example.com/mcp"),
+			Resource:        "https://api.example.com/mcp",
 			ScopesSupported: []string{"read", "write", "admin"},
 		},
 	}
@@ -1363,7 +1363,7 @@ func Test_resolveOAuthResourceURL(t *testing.T) {
 				SecurityPolicy: &aigv1b1.MCPRouteSecurityPolicy{
 					OAuth: &aigv1b1.MCPRouteOAuth{
 						ProtectedResourceMetadata: aigv1b1.ProtectedResourceMetadata{
-							Resource: ptr.To("https://explicit.example.com/mcp/"),
+							Resource: "https://explicit.example.com/mcp/",
 						},
 					},
 				},

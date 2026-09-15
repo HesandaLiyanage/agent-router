@@ -717,7 +717,7 @@ type ProtectedResourceMetadata struct {
 	// +kubebuilder:validation:Format=uri
 	// +kubebuilder:validation:XValidation:rule="self.startsWith('https://') || self.startsWith('http://')",message="resource must start with http:// or https://"
 	// +optional
-	Resource *string `json:"resource,omitempty"`
+	Resource string `json:"resource,omitempty"`
 
 	// ResourceName is a human-readable name for the protected resource.
 	// +kubebuilder:validation:Optional
