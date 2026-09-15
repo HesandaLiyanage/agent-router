@@ -1348,12 +1348,85 @@ func Test_resolveOAuthResourceURL(t *testing.T) {
 				{
 					Name:     "https",
 					Protocol: gwapiv1.HTTPSProtocolType,
+					Port:     443,
 					Hostname: (*gwapiv1.Hostname)(ptr.To("gateway.example.com")),
 				},
 			},
 		},
 	}
 	require.NoError(t, fakeClient.Create(ctx, gw))
+
+	httpGw := &gwapiv1.Gateway{
+		ObjectMeta: metav1.ObjectMeta{Name: "http-gw", Namespace: "default"},
+		Spec: gwapiv1.GatewaySpec{
+			Listeners: []gwapiv1.Listener{
+				{
+					Name:     "http",
+					Protocol: gwapiv1.HTTPProtocolType,
+					Port:     80,
+					Hostname: (*gwapiv1.Hostname)(ptr.To("http-gateway.example.com")),
+				},
+			},
+		},
+	}
+	require.NoError(t, fakeClient.Create(ctx, httpGw))
+
+	customPortGw := &gwapiv1.Gateway{
+		ObjectMeta: metav1.ObjectMeta{Name: "custom-port-gw", Namespace: "default"},
+		Spec: gwapiv1.GatewaySpec{
+			Listeners: []gwapiv1.Listener{
+				{
+					Name:     "https-8443",
+					Protocol: gwapiv1.HTTPSProtocolType,
+					Port:     8443,
+					Hostname: (*gwapiv1.Hostname)(ptr.To("gateway.example.com")),
+				},
+				{
+					Name:     "http-8080",
+					Protocol: gwapiv1.HTTPProtocolType,
+					Port:     8080,
+					Hostname: (*gwapiv1.Hostname)(ptr.To("gateway.example.com")),
+				},
+			},
+		},
+	}
+	require.NoError(t, fakeClient.Create(ctx, customPortGw))
+
+	dualGw := &gwapiv1.Gateway{
+		ObjectMeta: metav1.ObjectMeta{Name: "dual-gw", Namespace: "default"},
+		Spec: gwapiv1.GatewaySpec{
+			Listeners: []gwapiv1.Listener{
+				{
+					Name:     "http",
+					Protocol: gwapiv1.HTTPProtocolType,
+					Port:     80,
+					Hostname: (*gwapiv1.Hostname)(ptr.To("dual.example.com")),
+				},
+				{
+					Name:     "https",
+					Protocol: gwapiv1.HTTPSProtocolType,
+					Port:     443,
+					Hostname: (*gwapiv1.Hostname)(ptr.To("dual.example.com")),
+				},
+			},
+		},
+	}
+	require.NoError(t, fakeClient.Create(ctx, dualGw))
+
+	tcpGw := &gwapiv1.Gateway{
+		ObjectMeta: metav1.ObjectMeta{Name: "tcp-gw", Namespace: "default"},
+		Spec: gwapiv1.GatewaySpec{
+			Listeners: []gwapiv1.Listener{
+				{
+					Name:     "tcp-listener",
+					Protocol: gwapiv1.TCPProtocolType,
+					Port:     9000,
+					Hostname: (*gwapiv1.Hostname)(ptr.To("tcp.example.com")),
+				},
+			},
+		},
+	}
+	require.NoError(t, fakeClient.Create(ctx, tcpGw))
 
 	t.Run("explicit resource takes precedence", func(t *testing.T) {
 		mcpRoute := &aigv1b1.MCPRoute{
@@ -1435,6 +1508,121 @@ func Test_resolveOAuthResourceURL(t *testing.T) {
 		_, err := resolveOAuthResourceURL(ctx, fakeClient, mcpRoute)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "route specifies multiple hostnames")
+	})
+
+	t.Run("omitted resource derives http scheme when listener is HTTP:80", func(t *testing.T) {
+		mcpRoute := &aigv1b1.MCPRoute{
+			ObjectMeta: metav1.ObjectMeta{Name: "r-http", Namespace: "default"},
+			Spec: aigv1b1.MCPRouteSpec{
+				ParentRefs: []gwapiv1.ParentReference{
+					{Name: "http-gw"},
+				},
+				SecurityPolicy: &aigv1b1.MCPRouteSecurityPolicy{
+					OAuth: &aigv1b1.MCPRouteOAuth{},
+				},
+			},
+		}
+		url, err := resolveOAuthResourceURL(ctx, fakeClient, mcpRoute)
+		require.NoError(t, err)
+		require.Equal(t, "http://http-gateway.example.com/mcp", url)
+	})
+
+	t.Run("omitted resource derives https scheme with non-standard port 8443 via sectionName", func(t *testing.T) {
+		mcpRoute := &aigv1b1.MCPRoute{
+			ObjectMeta: metav1.ObjectMeta{Name: "r-https-8443", Namespace: "default"},
+			Spec: aigv1b1.MCPRouteSpec{
+				ParentRefs: []gwapiv1.ParentReference{
+					{
+						Name:        "custom-port-gw",
+						SectionName: (*gwapiv1.SectionName)(ptr.To("https-8443")),
+					},
+				},
+				SecurityPolicy: &aigv1b1.MCPRouteSecurityPolicy{
+					OAuth: &aigv1b1.MCPRouteOAuth{},
+				},
+			},
+		}
+		url, err := resolveOAuthResourceURL(ctx, fakeClient, mcpRoute)
+		require.NoError(t, err)
+		require.Equal(t, "https://gateway.example.com:8443/mcp", url)
+	})
+
+	t.Run("omitted resource derives http scheme with non-standard port 8080 via sectionName", func(t *testing.T) {
+		mcpRoute := &aigv1b1.MCPRoute{
+			ObjectMeta: metav1.ObjectMeta{Name: "r-http-8080", Namespace: "default"},
+			Spec: aigv1b1.MCPRouteSpec{
+				ParentRefs: []gwapiv1.ParentReference{
+					{
+						Name:        "custom-port-gw",
+						SectionName: (*gwapiv1.SectionName)(ptr.To("http-8080")),
+					},
+				},
+				SecurityPolicy: &aigv1b1.MCPRouteSecurityPolicy{
+					OAuth: &aigv1b1.MCPRouteOAuth{},
+				},
+			},
+		}
+		url, err := resolveOAuthResourceURL(ctx, fakeClient, mcpRoute)
+		require.NoError(t, err)
+		require.Equal(t, "http://gateway.example.com:8080/mcp", url)
+	})
+
+	t.Run("omitted resource prefers https:443 when both http:80 and https:443 listeners exist", func(t *testing.T) {
+		mcpRoute := &aigv1b1.MCPRoute{
+			ObjectMeta: metav1.ObjectMeta{Name: "r-dual", Namespace: "default"},
+			Spec: aigv1b1.MCPRouteSpec{
+				ParentRefs: []gwapiv1.ParentReference{
+					{Name: "dual-gw"},
+				},
+				SecurityPolicy: &aigv1b1.MCPRouteSecurityPolicy{
+					OAuth: &aigv1b1.MCPRouteOAuth{},
+				},
+			},
+		}
+		url, err := resolveOAuthResourceURL(ctx, fakeClient, mcpRoute)
+		require.NoError(t, err)
+		require.Equal(t, "https://dual.example.com/mcp", url)
+	})
+
+	t.Run("omitted resource rejects non-HTTP/HTTPS listener referenced by sectionName", func(t *testing.T) {
+		mcpRoute := &aigv1b1.MCPRoute{
+			ObjectMeta: metav1.ObjectMeta{Name: "r-tcp", Namespace: "default"},
+			Spec: aigv1b1.MCPRouteSpec{
+				ParentRefs: []gwapiv1.ParentReference{
+					{
+						Name:        "tcp-gw",
+						SectionName: (*gwapiv1.SectionName)(ptr.To("tcp-listener")),
+					},
+				},
+				SecurityPolicy: &aigv1b1.MCPRouteSecurityPolicy{
+					OAuth: &aigv1b1.MCPRouteOAuth{},
+				},
+			},
+		}
+		_, err := resolveOAuthResourceURL(ctx, fakeClient, mcpRoute)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `protocol "TCP" is not HTTP or HTTPS`)
+	})
+
+	t.Run("route hostname derives scheme and port from parent gateway listener if attached", func(t *testing.T) {
+		mcpRoute := &aigv1b1.MCPRoute{
+			ObjectMeta: metav1.ObjectMeta{Name: "r-route-attached", Namespace: "default"},
+			Spec: aigv1b1.MCPRouteSpec{
+				Hostnames: []gwapiv1.Hostname{"gateway.example.com"},
+				ParentRefs: []gwapiv1.ParentReference{
+					{
+						Name:        "custom-port-gw",
+						SectionName: (*gwapiv1.SectionName)(ptr.To("http-8080")),
+					},
+				},
+				SecurityPolicy: &aigv1b1.MCPRouteSecurityPolicy{
+					OAuth: &aigv1b1.MCPRouteOAuth{},
+				},
+			},
+		}
+		url, err := resolveOAuthResourceURL(ctx, fakeClient, mcpRoute)
+		require.NoError(t, err)
+		require.Equal(t, "http://gateway.example.com:8080/mcp", url)
 	})
 }
 
