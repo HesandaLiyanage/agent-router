@@ -458,16 +458,17 @@ func resolveDeterministicHostInfo(ctx context.Context, k8sClient client.Client, 
 		sectionName := *parentRef.SectionName
 		var targetListener *gwapiv1.Listener
 		for i := range gw.Spec.Listeners {
-			if string(gw.Spec.Listeners[i].Name) == string(sectionName) {
-				targetListener = &gw.Spec.Listeners[i]
+			l := &gw.Spec.Listeners[i]
+			if string(l.Name) == string(sectionName) {
+				if l.Protocol != gwapiv1.HTTPProtocolType && l.Protocol != gwapiv1.HTTPSProtocolType {
+					return nil, fmt.Errorf("cannot derive OAuth protectedResourceMetadata.resource: listener %q on parent Gateway %s/%s protocol %q is not HTTP or HTTPS; resource must be explicitly configured", sectionName, gwNamespace, gwName, l.Protocol)
+				}
+				targetListener = l
 				break
 			}
 		}
 		if targetListener == nil {
 			return nil, fmt.Errorf("cannot derive OAuth protectedResourceMetadata.resource: parent Gateway %s/%s has no listener named %q", gwNamespace, gwName, sectionName)
-		}
-		if targetListener.Protocol != gwapiv1.HTTPProtocolType && targetListener.Protocol != gwapiv1.HTTPSProtocolType {
-			return nil, fmt.Errorf("cannot derive OAuth protectedResourceMetadata.resource: listener %q on parent Gateway %s/%s protocol %q is not HTTP or HTTPS; resource must be explicitly configured", sectionName, gwNamespace, gwName, targetListener.Protocol)
 		}
 		if targetListener.Hostname == nil || *targetListener.Hostname == "" {
 			return nil, fmt.Errorf("cannot derive OAuth protectedResourceMetadata.resource: listener %q on parent Gateway %s/%s has no hostname configured; resource must be explicitly configured", sectionName, gwNamespace, gwName)
